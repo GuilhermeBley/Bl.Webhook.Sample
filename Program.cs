@@ -1,4 +1,7 @@
+using Bl.Webhook.Sample.Model;
+using Bl.Webhook.Sample.Services;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -6,6 +9,9 @@ var builder = WebApplication.CreateBuilder(args);
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+
+builder.Services.AddSingleton<InMemoryWebhookService>();
+builder.Services.AddSingleton<WebhookDispatcherService>();
 
 var app = builder.Build();
 
@@ -18,11 +24,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/", () =>
+app.MapGet("/webhook/in-memory", (
+    [FromBody] CreateWebhookSubscriptionViewModel model,
+    [FromServices] InMemoryWebhookService webhookService) =>
 {
-    return Results.Ok("Hello, World!");
+    webhookService.AddSubscription(new WebhookSubscription
+    {
+        Id = Guid.NewGuid(),
+        EventType = model.EventType,
+        WebhookUrl = model.WebhookUrl,
+        CreatedAt = DateTime.UtcNow
+    });
+
+    return Results.Created();
 })
-.WithName("GetWeatherForecast")
+.WithName("Subscribe to inMemory WebHook")
 .WithOpenApi();
 
 app.Run();
