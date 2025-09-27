@@ -40,7 +40,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapPost("/product/radom", async (
+app.MapPost("product/radom", async (
     [FromServices] WebhookDispatcherService dispatcher,
     CancellationToken cancellationToken) =>
 {
@@ -51,10 +51,10 @@ app.MapPost("/product/radom", async (
 
     return Results.Created();
 })
-.WithName("Subscribe to inMemory WebHook")
+.WithName("Create random product")
 .WithOpenApi();
 
-app.MapPost("/webhook/in-memory", (
+app.MapPost("webhook/in-memory", (
     [FromBody] CreateWebhookSubscriptionViewModel model,
     [FromServices] InMemoryWebhookService webhookService) =>
 {
