@@ -12,6 +12,22 @@ builder.Services.AddSwaggerGen();
 
 builder.Services.AddSingleton<InMemoryWebhookService>();
 builder.Services.AddSingleton<WebhookDispatcherService>();
+builder.Services.AddHttpClient(
+    WebhookDispatcherService.HttpClientName,
+    cfg =>
+    {
+        cfg.Timeout = TimeSpan.FromSeconds(10);
+        cfg.DefaultRequestHeaders.UserAgent.ParseAdd("Bl.Webhook");
+        cfg.DefaultRequestHeaders.Accept.ParseAdd("application/json");
+    })
+    .ConfigurePrimaryHttpMessageHandler(() =>
+    {
+        return new HttpClientHandler
+        {
+            UseCookies = false,
+            AllowAutoRedirect = false,  
+        };
+    });
 
 var app = builder.Build();
 
@@ -24,7 +40,21 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/webhook/in-memory", (
+app.MapPost("/product/radom", async (
+    [FromServices] WebhookDispatcherService dispatcher,
+    CancellationToken cancellationToken) =>
+{
+    await dispatcher.DispatchAsync(
+        "product.create",
+        new { Id = Guid.NewGuid(), Name = "Random Product", CreatedAt = DateTime.UtcNow },
+        cancellationToken: cancellationToken);
+
+    return Results.Created();
+})
+.WithName("Subscribe to inMemory WebHook")
+.WithOpenApi();
+
+app.MapPost("/webhook/in-memory", (
     [FromBody] CreateWebhookSubscriptionViewModel model,
     [FromServices] InMemoryWebhookService webhookService) =>
 {

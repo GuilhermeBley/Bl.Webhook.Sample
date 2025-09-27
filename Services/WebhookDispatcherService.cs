@@ -4,10 +4,18 @@ namespace Bl.Webhook.Sample.Services;
 
 internal class WebhookDispatcherService
 {
+    public const string HttpClientName = "webhook_dispatcher";
+
     private readonly InMemoryWebhookService _inMemoryWebhook;
     private readonly HttpClient _httpClient;
 
-    // TODO: Use IHttpClientFactory
+    public WebhookDispatcherService(
+        InMemoryWebhookService inMemoryWebhook,
+        IHttpClientFactory httpClientFactory)
+    {
+        _inMemoryWebhook = inMemoryWebhook;
+        _httpClient = httpClientFactory.CreateClient(HttpClientName);
+    }
 
     public async Task DispatchAsync(
         string eventType,
@@ -44,6 +52,8 @@ internal class WebhookDispatcherService
             subscriptions.AddRange(_inMemoryWebhook.GetSubscriptions(eventType));
 
         } catch { }
+
+        await Task.CompletedTask;
 
         return subscriptions.ToArray();
     }
