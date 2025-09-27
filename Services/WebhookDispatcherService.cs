@@ -1,23 +1,42 @@
 ﻿using Bl.Webhook.Sample.Model;
+using Bl.Webhook.Sample.Repository;
+using System.Threading.Channels;
 
 namespace Bl.Webhook.Sample.Services;
+
+internal record WebhookDispatch(string EventType, object? Data);
 
 internal class WebhookDispatcherService
 {
     public const string HttpClientName = "webhook_dispatcher";
 
-    private readonly InMemoryWebhookService _inMemoryWebhook;
+    private readonly WebhookContext _context;
+    private readonly Channel<WebhookDispatch> _channel;
     private readonly HttpClient _httpClient;
 
     public WebhookDispatcherService(
-        InMemoryWebhookService inMemoryWebhook,
-        IHttpClientFactory httpClientFactory)
+        Channel<WebhookDispatch> channel,
+        IHttpClientFactory httpClientFactory,
+        WebhookContext context)
     {
-        _inMemoryWebhook = inMemoryWebhook;
+        _channel = channel;
         _httpClient = httpClientFactory.CreateClient(HttpClientName);
+        _context = context;
     }
 
-    public async Task DispatchAsync(
+    public Task DispatchAsync<T>(
+        string eventType,
+        T payload,
+        CancellationToken cancellationToken = default)
+        where T : notnull
+    {
+        return _channel.Writer.WriteAsync(
+            new WebhookDispatch(eventType, payload),
+            cancellationToken)
+            .AsTask();
+    }
+
+    public async Task ProcessAsync(
         string eventType,
         object payload,
         CancellationToken cancellationToken = default)
@@ -49,7 +68,12 @@ internal class WebhookDispatcherService
         List<WebhookSubscription> subscriptions = new();
         try
         {
-            subscriptions.AddRange(_inMemoryWebhook.GetSubscriptions(eventType));
+            var subs = await _context.WebhookSubscriptions
+                .AsNoTracking()
+                .Where(s => s.EventType == eventType)
+                .ToArrayAsync(cancellationToken);
+
+            subscriptions.AddRange(subs);
 
         } catch { }
 
