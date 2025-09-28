@@ -7,6 +7,10 @@ public class WebhookContext : DbContext
     public DbSet<ProductModel> Products { get; set; }
     public DbSet<WebhookSubscription> WebhookSubscriptions { get; set; }
 
+    public WebhookContext(DbContextOptions options) : base(options)
+    {
+    }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

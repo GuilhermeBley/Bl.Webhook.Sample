@@ -1,3 +1,4 @@
+using Bl.Webhook.Sample.BackgroundServices;
 using Bl.Webhook.Sample.Model;
 using Bl.Webhook.Sample.Repository;
 using Bl.Webhook.Sample.Services;
@@ -32,6 +33,7 @@ builder.Services.AddSingleton(_ =>
     });
 });
 
+builder.Services.AddHostedService<WebhookDispatcherWorker>();
 builder.Services.AddScoped<WebhookDispatcherService>();
 builder.Services.AddHttpClient(
     WebhookDispatcherService.HttpClientName,
@@ -46,7 +48,7 @@ builder.Services.AddHttpClient(
         return new HttpClientHandler
         {
             UseCookies = false,
-            AllowAutoRedirect = false,  
+            AllowAutoRedirect = false,
         };
     });
 

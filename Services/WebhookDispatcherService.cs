@@ -13,15 +13,18 @@ internal class WebhookDispatcherService
     private readonly WebhookContext _context;
     private readonly Channel<WebhookDispatch> _channel;
     private readonly HttpClient _httpClient;
+    private readonly ILogger<WebhookDispatcherService> _logger;
 
     public WebhookDispatcherService(
         Channel<WebhookDispatch> channel,
         IHttpClientFactory httpClientFactory,
-        WebhookContext context)
+        WebhookContext context,
+        ILogger<WebhookDispatcherService> logger)
     {
         _channel = channel;
         _httpClient = httpClientFactory.CreateClient(HttpClientName);
         _context = context;
+        _logger = logger;
     }
 
     public Task DispatchAsync<T>(
@@ -44,20 +47,29 @@ internal class WebhookDispatcherService
         var subscriptions = await GetAllSubscriptions(eventType, cancellationToken);
         foreach (var subscription in subscriptions)
         {
-            var request = new
+            try
             {
-                Id = Guid.NewGuid(),
-                WebhookId = subscription.Id,
-                EventType = eventType,
-                SubscriptionId = subscription.Id,
-                Payload = payload,
-                CreatedAt = DateTime.UtcNow
-            };
+                var request = new
+                {
+                    Id = Guid.NewGuid(),
+                    WebhookId = subscription.Id,
+                    EventType = eventType,
+                    SubscriptionId = subscription.Id,
+                    Payload = payload,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            await _httpClient.PostAsJsonAsync(
-                subscription.WebhookUrl,
-                request,
-                cancellationToken);
+                using var response = await _httpClient.PostAsJsonAsync(
+                    subscription.WebhookUrl,
+                    request,
+                    cancellationToken);
+
+                response.EnsureSuccessStatusCode();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to dispatch webhook to {Url}", subscription.WebhookUrl);
+            }
         }
     }
 
